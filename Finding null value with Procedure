@@ -1,10 +1,17 @@
- This Procedure and queries are made to find the Key identifier that has no mandatory attribute.
+ This Procedure and queries are made to find the Key identifier(itemcode) that has no mandatory attribute.
+   * Each itemcode has specific category.
+   * Category and other Attributes has own attribute number and attribute value and those data saved in Item_master_attr Table
+   * As the assigned Category value(category attribute number =30) the key itemcode must contain specific Attibutes for each category
+     those specific attributes called Mandatory Attributes saved in Mandatory_attr
 
+-------------Creating table to save procedure result
 
 CREATE TABLE "RD_NULLATTR"                     
 ( "ITEMCODE" varchar(60),
 "ATTRNO" VARCHAR(60),
 "CATEGORY" VARCHAR(60))                
+
+-------------Assign Cursor as each Category code
 
 DECLARE                                   
    CURSOR GETDATA
@@ -19,28 +26,41 @@ BEGIN
    COMMIT;
    
 FOR I IN GETDATA
-   
+
 LOOP
       INSERT INTO RD_NULLATTR 
       SELECT ITEMCODE, CHILDATTRNO, ATTRVALUE
       FROM (
+      
+-------------AA.ATTRVALUE = Category code, AA.Childattrno = madatory attributes numver, Attrno = Actual attributes saved in each itemcode among mandatory attribute for itemcode's assigned category
+      
               SELECT AA.ATTRVALUE,AA.CHILDATTRNO,bb.itemcode, ATTRNO
               FROM (
+              
+-------------Find the mandatory attribute number for each category(attrvalue in mandatory_attr = category code)
+
                       SELECT ATTRVALUE, CHILDATTRNO 
                       FROM MANDATORY_ATTR 
                       WHERE attrvalue = I.ATTRVALUE) aa 
-      LEFT OUTER JOIN (
-                       SELECT ITEMCODE, ATTRNO
-                       FROM item_master_attr
-                       WHERE attrno <> 30
-                       AND itemcode IN (
-                                         SELECT itemcode
-                                         FROM item_master_attr
-                                         WHERE attrno = 30
-                                         AND attrvalue = I.ATTRVALUE)) bb
-     PARTITION BY (bb.itemcode)
-     ON (aa.CHILDATTRNO = bb.ATTRNO))
-     WHERE attrno is null;
+                     
+                      LEFT OUTER JOIN (
+      
+-------------Find each itemcode's containing attibutes' number by each category(item's assigned category code saved in item_master_attr table and category's attribute number =30)
+                                       SELECT ITEMCODE, ATTRNO
+                                       FROM item_master_attr
+                                       WHERE attrno <> 30
+                                       AND itemcode IN (
+                                                         SELECT itemcode
+                                                         FROM item_master_attr
+                                                         WHERE attrno = 30
+                                                         AND attrvalue = I.ATTRVALUE)
+                                       ) bb
+               PARTITION BY (bb.itemcode)
+               
+------------aa.Childattrno = Mandatory attibute's number, bb.Attrno = actual attribute per itemcode
+
+               ON (aa.CHILDATTRNO = bb.ATTRNO))
+               WHERE attrno is null;
           
 END LOOP;
 
@@ -49,15 +69,5 @@ COMMIT;
 END;           
 
 
-SELECT A.*, B.IPD_USER
-FROM RD_NULLATTR A, RD_CATEGORY_INFO B
-WHERE A.CATEGORY = B.CATEGORY_CODE ;     
-
-
-SELECT C.ITEMCODE, A.ATTRNO, A.CATEGORY, B.IPD_USER
-FROM RD_NULLATTR A, RD_CATEGORY_INFO B, ITEM_MASTER_ATTR C
-WHERE A.CATEGORY = B.CATEGORY_CODE
-AND A.ITEMCODE LIKE ('992%') 
-AND C.ATTRNO = '7591'
-AND C.ATTRVALUE IN ('RETAIL') 
-AND A.ITEMCODE = C.ITEMCODE ;                     
+SELECT *
+FROM RD_NULLATTR

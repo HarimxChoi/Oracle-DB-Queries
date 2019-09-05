@@ -1,0 +1,63 @@
+ This Procedure and queries are made to find the Key identifier that has no mandatory attribute.
+
+
+CREATE TABLE "RD_NULLATTR"                     
+( "ITEMCODE" varchar(60),
+"ATTRNO" VARCHAR(60),
+"CATEGORY" VARCHAR(60))                
+
+DECLARE                                   
+   CURSOR GETDATA
+   IS
+      SELECT distinct CATCODE 
+      FROM MANDATORY_ATTR;
+        
+BEGIN
+
+   DELETE RD_NULLATTR;
+   
+   COMMIT;
+   
+FOR I IN GETDATA
+   
+LOOP
+      INSERT INTO RD_NULLATTR 
+      SELECT ITEMCODE, CHILDATTRNO, ATTRVALUE
+      FROM (
+              SELECT AA.ATTRVALUE,AA.CHILDATTRNO,bb.itemcode, ATTRNO
+              FROM (
+                      SELECT ATTRVALUE, CHILDATTRNO 
+                      FROM MANDATORY_ATTR 
+                      WHERE attrvalue = I.ATTRVALUE) aa 
+      LEFT OUTER JOIN (
+                       SELECT ITEMCODE, ATTRNO
+                       FROM item_master_attr
+                       WHERE attrno <> 30
+                       AND itemcode IN (
+                                         SELECT itemcode
+                                         FROM item_master_attr
+                                         WHERE attrno = 30
+                                         AND attrvalue = I.ATTRVALUE)) bb
+     PARTITION BY (bb.itemcode)
+     ON (aa.CHILDATTRNO = bb.ATTRNO))
+     WHERE attrno is null;
+          
+END LOOP;
+
+COMMIT;
+   
+END;           
+
+
+SELECT A.*, B.IPD_USER
+FROM RD_NULLATTR A, RD_CATEGORY_INFO B
+WHERE A.CATEGORY = B.CATEGORY_CODE ;     
+
+
+SELECT C.ITEMCODE, A.ATTRNO, A.CATEGORY, B.IPD_USER
+FROM RD_NULLATTR A, RD_CATEGORY_INFO B, ITEM_MASTER_ATTR C
+WHERE A.CATEGORY = B.CATEGORY_CODE
+AND A.ITEMCODE LIKE ('992%') 
+AND C.ATTRNO = '7591'
+AND C.ATTRVALUE IN ('RETAIL') 
+AND A.ITEMCODE = C.ITEMCODE ;                     
